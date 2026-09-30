@@ -1,6 +1,6 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {getDatabase,ref,onValue,get,update,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
-import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import {getAuth,GoogleAuthProvider,signInWithRedirect,getRedirectResult,signOut,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 
 const params=new URLSearchParams(location.search);
 const teacher=params.has('admin');
@@ -8,6 +8,7 @@ const review=params.has('view');
 const app=initializeApp(window.FIREBASE_CONFIG);
 const db=getDatabase(app), auth=getAuth(app);
 const stateRef=ref(db,'decks/'+window.DECK_ID+'/state');
+getRedirectResult(auth).catch(e=>{document.getElementById('syncMessage').textContent='로그인 실패 · '+e.code;});
 let admin=false, connected=false, state=null;
 const status=document.getElementById('syncStatus');
 const login=document.getElementById('syncLogin');
@@ -46,7 +47,7 @@ onAuthStateChanged(auth,async user=>{
   paint();
 });
 login.addEventListener('click',async()=>{
-  try{if(auth.currentUser) await signOut(auth);else await signInWithPopup(auth,new GoogleAuthProvider());}
+  try{if(auth.currentUser) await signOut(auth);else await signInWithRedirect(auth,new GoogleAuthProvider());}
   catch(e){message.textContent='로그인 실패 · '+e.code;}
 });
 lock.addEventListener('click',async()=>{
