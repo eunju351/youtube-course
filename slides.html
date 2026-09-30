@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<!--
+  웹슬라이드 스타터 · 두온교육 「강의 사이트 제작 노하우」 참가자 키트
+  먼저 바꿀 것
+  1) 아래 스크립트의 LS = 'mykit_' → 내 강의 고유 접두사 (예: 'ai0927_')
+     접두사가 겹치면 다른 강의 사이트와 저장값이 섞임
+  2) <title>, description, 표지·마침 슬라이드의 [ ] 자리
+  3) 슬라이드 추가·삭제 시 aria-label 번호와 주석 번호 함께 재정렬 (AGENTS.md 참고)
+  외부 파일 없음 · 백엔드 없음 · 이 파일 하나로 동작
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>[강의 제목] 슬라이드</title>
+<meta name="description" content="[강의 제목] 수업 슬라이드 · [날짜] · 강사 [이름]">
+<meta name="theme-color" content="#111111">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --ink:#111111; --sub:#555555; --mute:#767676;
+  --line:#E3E3E3;
+  --slide-bg:#F4F4F3; --card:#FFFFFF;
+  --accent:#F6C744; --accent-sub:#3A3000;
+  --shadow:0 .45cqi 1.4cqi rgba(0,0,0,.09), 0 .1cqi .3cqi rgba(0,0,0,.07);
+  --shadow-lg:0 .8cqi 2.4cqi rgba(0,0,0,.13), 0 .18cqi .45cqi rgba(0,0,0,.08);
+  --alert:#D32F2F;
+  --nav-h:60px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:#0E0E0E;color:var(--ink);
+  font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;
+  word-break:keep-all;overflow-wrap:anywhere;-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:inherit;text-wrap:balance;letter-spacing:-.01em}
+p,li{text-wrap:pretty}
+button{font-family:inherit}
+
+/* 16:9 무대 · 모든 크기를 무대 폭 기준 cqi로 → 창 크기와 무관하게 같은 비율 */
+#stage{position:fixed;left:50%;top:calc((100vh - var(--nav-h)) / 2);transform:translate(-50%,-50%);
+  width:min(100vw, calc((100vh - var(--nav-h)) * 16 / 9));aspect-ratio:16/9;
+  container-type:inline-size;background:var(--slide-bg);overflow:hidden}
+
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:4.6cqi 6cqi;background:var(--slide-bg);color:var(--ink)}
+.slide.active{display:flex}
+.slide-content{flex:1;display:flex;flex-direction:column;justify-content:center;gap:1.8cqi;min-height:0}
+
+/* 타이포 (단위 cqi) */
+.kicker{display:flex;align-items:center;gap:1cqi;font-size:1.6cqi;font-weight:800;letter-spacing:.06em;color:var(--ink)}
+.kicker::before{content:'';flex:0 0 auto;width:2.4cqi;height:.36cqi;background:currentColor}
+h1{font-size:6cqi;font-weight:900;line-height:1.22}
+h2{font-size:3.9cqi;font-weight:800;line-height:1.28}
+.lede{font-size:2.2cqi;color:var(--sub);line-height:1.6}
+
+/* 표지·마침: 머스타드 옐로 / 휴식: 검정 반전 */
+.title-slide{background:var(--accent);color:#111111}
+.title-slide .slide-content{align-items:center;text-align:center}
+.title-slide .kicker{color:#111111}
+.title-slide h1::after{content:'';display:block;width:6cqi;height:.4cqi;background:#111111;margin:2.4cqi auto 0}
+.title-slide .lede{color:var(--accent-sub)}
+.slide.dark{background:#111111;color:#FFFFFF}
+.slide.dark .kicker{color:#FFFFFF}
+.slide.dark .lede{color:#BDBDBD}
+.meta-row{display:flex;justify-content:center;gap:1.2cqi;flex-wrap:wrap;font-size:1.7cqi}
+.meta-row span{border:.18cqi solid #111111;border-radius:99cqi;padding:.7cqi 2cqi;color:#111111;font-weight:600}
+
+/* 불릿: 한 줄씩 그림자 박스 */
+.bullets{display:flex;flex-direction:column;gap:1.2cqi}
+.bullets li{list-style:none;display:flex;gap:1.4cqi;align-items:flex-start;font-size:2.25cqi;line-height:1.55;
+  background:var(--card);box-shadow:var(--shadow);border-radius:1cqi;padding:1.25cqi 2cqi}
+.bullets li::before{content:'';flex:0 0 auto;width:.75cqi;height:.75cqi;background:var(--ink);margin-top:1.36cqi}
+.slide-content a{color:inherit;text-underline-offset:.3em;text-decoration-thickness:.15em}
+
+/* 카드 */
+.card-grid{display:grid;gap:1.8cqi}
+.c2{grid-template-columns:repeat(2,1fr)}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--card);border-radius:1.2cqi;box-shadow:var(--shadow-lg);padding:2.2cqi;
+  display:flex;flex-direction:column;gap:.8cqi;min-width:0}
+.card .n{font-size:3.4cqi;font-weight:900;line-height:1;color:var(--ink)}
+.card .t{font-size:2.3cqi;font-weight:800}
+.card .d{font-size:1.8cqi;color:var(--sub);line-height:1.5}
+/* 색으로만 구분 금지: 아쉬운 예 = 점선 + ✕, 좋은 예 = 굵은 검정 막대 + ✓ */
+.card.bad{background:#FAFAFA;box-shadow:none;border:.2cqi dashed #9E9E9E}
+.card.bad .t{color:var(--sub)}
+.card.bad .t::before{content:'✕  '}
+.card.good{border-left:.7cqi solid var(--ink)}
+.card.good .t::before{content:'✓  '}
+
+/* 표 */
+table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:1.85cqi;line-height:1.35;
+  background:var(--card);box-shadow:var(--shadow-lg);border-radius:1.2cqi;overflow:hidden}
+table.tbl th, table.tbl td{padding:.8cqi 1.6cqi;text-align:left;border-bottom:.12cqi solid var(--line)}
+table.tbl tbody tr:last-child td{border-bottom:none}
+table.tbl th{background:#111111;color:#FFFFFF;font-weight:800}
+table.tbl tr.today td{font-weight:800}
+table.tbl tr.today td:first-child{box-shadow:inset .55cqi 0 0 #111111}
+table.tbl td:first-child, table.tbl th:first-child{white-space:nowrap}
+table.tbl td:first-child{color:var(--sub)}
+
+/* 프롬프트 카드: 검정 박스 + 오른쪽 위 복사 버튼 */
+.prompt-card{position:relative;background:#111111;color:#F2F2F2;border-radius:1.2cqi;box-shadow:var(--shadow-lg);
+  padding:2cqi 2.4cqi;display:flex;flex-direction:column;gap:1cqi}
+.prompt-card .label{font-size:1.5cqi;font-weight:800;letter-spacing:.06em;color:#BDBDBD;padding-right:14cqi}
+.prompt-card blockquote{font-size:2cqi;line-height:1.6;color:#FFFFFF;border-left:.3cqi solid #666666;padding-left:1.6cqi;
+  font-style:normal;white-space:pre-wrap}
+.copy-btn{position:absolute;top:1.5cqi;right:1.6cqi;font-size:1.5cqi;font-weight:800;
+  padding:.7cqi 1.8cqi;border-radius:99cqi;border:none;background:#FFFFFF;color:#111111;cursor:pointer;min-height:44px;min-width:44px}
+.copy-btn:hover, .copy-btn.copied{background:#E2E2E2}
+.copy-btn:focus-visible{outline:.25cqi solid #FFFFFF;outline-offset:.25cqi}
+
+/* 타이머: 클릭 시작/일시정지 · 더블클릭 또는 R 키 리셋 */
+.timer-chip{display:inline-flex;align-items:center;gap:1cqi;align-self:flex-start;cursor:pointer;user-select:none;
+  background:var(--card);box-shadow:var(--shadow);border:.18cqi solid var(--ink);border-radius:99cqi;min-height:44px;
+  padding:.9cqi 2.2cqi;font-size:2cqi;font-weight:800;color:var(--ink)}
+.timer-chip .time{font-variant-numeric:tabular-nums;min-width:3.4em;text-align:center}
+.timer-chip.running{background:#111111;color:#FFFFFF}
+.timer-chip.warn .time{color:var(--alert)}
+.timer-chip.running.warn .time{color:#FF8A80}
+.timer-chip .state{font-size:1.4cqi;font-weight:700;opacity:.8}
+.timer-chip:focus-visible, .break-big:focus-visible{outline:.3cqi solid currentColor;outline-offset:.4cqi}
+.break-big{cursor:pointer;user-select:none;text-align:center;font-variant-numeric:tabular-nums;background:none;border:none;
+  font-size:16cqi;font-weight:900;line-height:1.05;color:#FFFFFF;min-height:44px;border-radius:1cqi}
+.break-big.warn{color:#FF8A80}
+
+/* 하단 네비 */
+#nav{position:fixed;left:0;right:0;bottom:0;height:var(--nav-h);background:#0E0E0E;border-top:1px solid #222;
+  display:flex;align-items:center;gap:8px;padding:0 14px;color:#EEEEEE;font-size:14px;z-index:200}
+#nav button, #nav a{background:#1F1F1F;color:#EEEEEE;border:1px solid #2E2E2E;border-radius:8px;
+  height:44px;min-width:44px;padding:0 14px;font-size:14px;font-weight:700;cursor:pointer;
+  text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+#nav button:hover, #nav a:hover{background:#2C2C2C}
+#nav button:disabled{opacity:.35;cursor:default}
+#nav button:focus-visible, #nav a:focus-visible{outline:2px solid #FFFFFF;outline-offset:2px}
+#nav .grow{flex:1}
+#counter{font-variant-numeric:tabular-nums;font-weight:800;min-width:5.5em;text-align:center}
+.hint{color:#9A9A9A;font-size:12.5px}
+#progress{position:fixed;left:0;bottom:var(--nav-h);height:3px;background:#FFFFFF;width:0;z-index:201;transition:width .2s}
+@media (max-width:760px){ #nav .hide-sm{display:none} }
+
+/* 전체보기: 실제 축소판 */
+.grid-overlay{position:fixed;inset:0;z-index:500;background:rgba(10,10,10,.97);display:none;overflow:auto;padding:22px 22px 40px}
+.grid-overlay.open{display:block}
+.grid-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.grid-head h2{color:#FFFFFF;font-size:20px;font-weight:800}
+.grid-head button{background:#1F1F1F;color:#EEEEEE;border:1px solid #2E2E2E;border-radius:8px;height:44px;padding:0 16px;
+  font-size:14px;font-weight:700;cursor:pointer}
+.grid-head button:focus-visible{outline:2px solid #FFFFFF;outline-offset:2px}
+.grid-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.mini{position:relative;aspect-ratio:16/9;border-radius:8px;overflow:hidden;cursor:pointer;
+  outline:3px solid transparent;outline-offset:2px;background:var(--slide-bg)}
+.mini:hover, .mini:focus-visible, .mini.current{outline-color:#FFFFFF}
+/* 960px 기준으로 그린 뒤 축소 · 240px에 직접 그리면 브라우저 최소 글꼴 크기에 걸려 넘침 */
+.mini-inner{position:absolute;left:0;top:0;width:960px;height:540px;container-type:inline-size;
+  transform-origin:0 0;pointer-events:none;background:var(--slide-bg)}
+.mini-inner .slide{display:flex}
+.mini-num{position:absolute;right:6px;top:6px;background:rgba(0,0,0,.78);color:#FFFFFF;font-size:12px;font-weight:700;
+  padding:2px 8px;border-radius:99px;z-index:2}
+
+@media (prefers-reduced-motion:reduce){ #progress{transition:none} }
+
+/* PDF: 16:9 페이지 1장 = 슬라이드 1장 */
+@page{size:13.333in 7.5in;margin:0}
+@media print{
+  html, body{overflow:visible!important;height:auto!important;background:#FFFFFF}
+  #nav, #progress, .grid-overlay{display:none!important}
+  #stage{position:static!important;transform:none!important;width:13.333in!important;aspect-ratio:auto!important;overflow:visible!important}
+  #stage > .slide{position:relative!important;display:flex!important;width:13.333in;height:7.5in;
+    break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #stage > .slide:last-child{break-after:auto;page-break-after:auto}
+}
+</style>
+</head>
+<body>
+
+<main id="stage">
+
+<!-- ===== 1. 경험을 수익으로 연결하는 유튜브 ===== -->
+<section class="slide active title-slide" aria-label="1. 경험을 수익으로 연결하는 유튜브">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 유튜브 수익화의 이해와 채널 방향</div><h1>경험을 수익으로 연결하는 유튜브</h1><p class="lede">5회 결과물: 채널 기획 · 첫 영상 · 30일 계획</p><div class="meta-row"><span>40~60대</span><span>수업 50분 + 휴식 10분</span><span>1 / 5회</span></div>
+  </div>
+</section>
+
+<!-- ===== 2. 오늘의 순서 ===== -->
+<section class="slide" aria-label="2. 오늘의 순서">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 02 / 15</div><h2>오늘의 순서</h2><p class="lede">수익 구조 이해 → 주제 선정 → 채널 방향 설정</p><ul class="bullets"><li>0~25분: 설명·시연</li><li>25~30분: 첫 실습 · 30~40분: 휴식</li><li>40~48분: 설명·시연 · 48~58분: 마무리 실습</li><li>58~60분: 핵심 정리와 다음 준비</li></ul>
+  </div>
+</section>
+
+<!-- ===== 3. 채널 유형과 애드센스 ===== -->
+<section class="slide" aria-label="3. 채널 유형과 애드센스" style="padding-block:3cqi">
+  <div class="slide-content" style="gap:1cqi">
+    <div class="kicker">1회차 · 03 / 15</div><h2>채널 유형과 애드센스</h2>
+    <p class="lede">채널: 영상 공간 · 구독: 관심 채널 연결 · 조회수: 재생 횟수</p>
+    <table class="tbl"><thead><tr><th scope="col">구분</th><th scope="col">본계정 채널</th><th scope="col">브랜드 채널</th></tr></thead><tbody><tr><td>연결 구조</td><td>개인 Google 계정에 직접 연결</td><td>브랜드 계정에 연결</td></tr><tr><td>소유자 변경</td><td>브랜드 계정 전환 필요</td><td>조건 충족 후 변경 가능</td></tr><tr><td>공동 운영</td><td>스튜디오 채널 권한으로 초대</td><td>여러 소유자 지정·채널 권한 활용</td></tr></tbody></table>
+    <div class="card-grid c2"><div class="card"><div class="t">브랜드 채널의 운영 편의</div><div class="d">소유자·관리자 역할 분담과 담당자 변경</div><div class="d">애드센스 승인·지급 우대 없음</div></div><div class="card"><div class="t">두 유형의 공통 수령 원칙</div><div class="d">수취인당 애드센스 1개 · 여러 채널 연결 가능</div><div class="d">채널 이전 시에도 애드센스 소유권 양도 불가</div></div></div>
+    <p class="lede">공식 안내: <a href="https://support.google.com/youtube/answer/4628007?hl=ko" target="_blank" rel="noopener">채널 소유·관리</a> · <a href="https://support.google.com/youtube/answer/9914702?hl=ko" target="_blank" rel="noopener">애드센스 수령</a></p>
+  </div>
+</section>
+
+<!-- ===== 4. 시청자의 선택 이유 ===== -->
+<section class="slide" aria-label="4. 시청자의 선택 이유">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 04 / 15</div><h2>시청자의 선택 이유</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">문제 해결</div><div class="d">막힌 일을 해결할 방법</div></div><div class="card"><div class="n">2</div><div class="t">시간 절약</div><div class="d">쉽고 빠른 설명</div></div><div class="card"><div class="n">3</div><div class="t">경험 공유</div><div class="d">먼저 해 본 사람의 실제 사례</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 5. 유튜브 수익의 종류 ===== -->
+<section class="slide" aria-label="5. 유튜브 수익의 종류">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 05 / 15</div><h2>유튜브 수익의 종류</h2><table class="tbl"><thead><tr><th scope="col">수익 방식</th><th scope="col">수익의 출발점</th></tr></thead><tbody><tr><td>광고</td><td>참여 요건 충족과 심사 후 광고 수익 공유</td></tr><tr><td>제휴</td><td>상품 연결 후 인정된 구매 등의 성과</td></tr><tr><td>협찬</td><td>브랜드와 합의한 콘텐츠 제작</td></tr><tr><td>자체 상품</td><td>자료·강의·서비스 판매</td></tr></tbody></table><p class="lede"><a href="https://support.google.com/youtube/answer/72851?hl=ko" target="_blank" rel="noopener">참고: 유튜브 공식 도움말</a></p>
+  </div>
+</section>
+
+<!-- ===== 6. 경험 기반 주제 ===== -->
+<section class="slide" aria-label="6. 경험 기반 주제">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 06 / 15</div><h2>경험 기반 주제</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">직업 경험</div><div class="d">30년 수선 경험과 옷 관리</div></div><div class="card"><div class="n">2</div><div class="t">취미 경험</div><div class="d">베란다 식물과 분갈이</div></div><div class="card"><div class="n">3</div><div class="t">생활 경험</div><div class="d">소량 반찬과 식재료 보관</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 7. 지속 가능한 주제의 기준 ===== -->
+<section class="slide" aria-label="7. 지속 가능한 주제의 기준">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 07 / 15</div><h2>지속 가능한 주제의 기준</h2><table class="tbl"><thead><tr><th scope="col">기준</th><th scope="col">스스로 확인할 내용</th></tr></thead><tbody><tr><td>경험</td><td>직접 해 본 사례 3개</td></tr><tr><td>관심</td><td>앞으로도 배우고 싶은 분야</td></tr><tr><td>반복 제작</td><td>이어갈 영상 주제 10개</td></tr></tbody></table>
+  </div>
+</section>
+
+<!-- ===== 8. 실습: 경험 소재 목록 ===== -->
+<section class="slide" aria-label="8. 실습: 경험 소재 목록">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 08 / 15</div><h2>실습: 경험 소재 목록</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-8">내 경험에서 영상 소재 10개 작성. 직업·취미·생활로 나누고, 직접 보여 줄 수 있는 소재에 동그라미 표시.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-8" aria-label="실습: 경험 소재 목록 내용 복사">복사</button></div><p class="lede">결과물: 경험 소재 10개</p><button type="button" class="timer-chip" data-minutes="5" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">5:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 9. 10분 휴식 ===== -->
+<section class="slide dark" aria-label="9. 10분 휴식">
+  <div class="slide-content" style="align-items:center;text-align:center">
+    <div class="kicker">1회차 · 09 / 15 · 휴식</div><h2>10분 휴식</h2><button type="button" class="break-big" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋" aria-label="휴식 타이머 10분"><span class="time">10:00</span></button><p class="lede">눈과 어깨의 긴장 완화 · 다음 활동: 시청자와 채널 소개 정리</p>
+  </div>
+</section>
+
+<!-- ===== 10. 핵심 시청자 한 사람 ===== -->
+<section class="slide" aria-label="10. 핵심 시청자 한 사람">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 10 / 15</div><h2>핵심 시청자 한 사람</h2><div class="prompt-card"><div class="label">작성 예시와 요청문</div><blockquote id="pt-10">대상: 베란다 식물을 처음 키우는 사람. 고민: 물 주는 시점을 모르는 상황. 필요한 도움: 흙 상태로 확인하는 방법.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-10" aria-label="핵심 시청자 한 사람 내용 복사">복사</button></div><p class="lede">작성 기준: 나이보다 구체적인 고민</p>
+  </div>
+</section>
+
+<!-- ===== 11. 채널의 한 문장 소개 ===== -->
+<section class="slide" aria-label="11. 채널의 한 문장 소개">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 11 / 15</div><h2>채널의 한 문장 소개</h2><div class="prompt-card"><div class="label">작성 예시와 요청문</div><blockquote id="pt-11">나는 [구체적인 고민이 있는 사람]에게 [내 경험으로 설명할 방법]을 알려 주는 채널 운영자.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-11" aria-label="채널의 한 문장 소개 내용 복사">복사</button></div><p class="lede">예시: 초보 집사를 위한 베란다 식물 관리</p>
+  </div>
+</section>
+
+<!-- ===== 12. 영상 형식의 선택 ===== -->
+<section class="slide" aria-label="12. 영상 형식의 선택">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 12 / 15</div><h2>영상 형식의 선택</h2><table class="tbl"><thead><tr><th scope="col">형식</th><th scope="col">적합한 소재</th><th scope="col">촬영 대상</th></tr></thead><tbody><tr><td>얼굴 출연</td><td>경험담·설명</td><td>표정과 말</td></tr><tr><td>손 촬영</td><td>요리·수선</td><td>손동작과 재료</td></tr><tr><td>화면 설명</td><td>스마트폰 활용</td><td>화면과 음성</td></tr></tbody></table>
+  </div>
+</section>
+
+<!-- ===== 13. 초기 운영 목표 ===== -->
+<section class="slide" aria-label="13. 초기 운영 목표">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 13 / 15</div><h2>초기 운영 목표</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">제작 목표</div><div class="d">짧은 영상 1편 완성</div></div><div class="card"><div class="n">2</div><div class="t">습관 목표</div><div class="d">가능한 제작 시간 확보</div></div><div class="card"><div class="n">3</div><div class="t">개선 목표</div><div class="d">영상마다 수정할 점 1개</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 14. 실습: 채널 기획 카드 ===== -->
+<section class="slide" aria-label="14. 실습: 채널 기획 카드">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 14 / 15</div><h2>실습: 채널 기획 카드</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-14">주제: ___. 시청자: ___. 해결할 고민: ___. 제공할 도움: ___. 영상 형식: ___. 한 문장 소개로 정리.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-14" aria-label="실습: 채널 기획 카드 내용 복사">복사</button></div><p class="lede">결과물: 채널 기획 카드 1장</p><button type="button" class="timer-chip" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">10:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 15. 마침과 다음 준비 ===== -->
+<section class="slide title-slide" aria-label="15. 마침과 다음 준비">
+  <div class="slide-content">
+    <div class="kicker">1회차 · 15 / 15 · 마침</div><h1>마침과 다음 준비</h1><p class="lede">완성: 채널 방향과 기획 카드</p><div class="meta-row"><span>다음 준비: 참고 영상 3개와 선택 이유</span></div>
+  </div>
+</section>
+
+<!-- ===== 16. 경험을 영상으로 바꾸는 기획 ===== -->
+<section class="slide title-slide" aria-label="16. 경험을 영상으로 바꾸는 기획">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 시청자가 찾는 주제와 대본 기획</div><h1>경험을 영상으로 바꾸는 기획</h1><p class="lede">오늘의 결과물: 첫 영상 대본</p><div class="meta-row"><span>40~60대</span><span>수업 50분 + 휴식 10분</span><span>2 / 5회</span></div>
+  </div>
+</section>
+
+<!-- ===== 17. 오늘의 순서 ===== -->
+<section class="slide" aria-label="17. 오늘의 순서">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 02 / 15</div><h2>오늘의 순서</h2><p class="lede">시청자 질문 찾기 → 주제 선택 → 대본 작성</p><ul class="bullets"><li>0~25분: 설명·시연</li><li>25~30분: 첫 실습 · 30~40분: 휴식</li><li>40~48분: 설명·시연 · 48~58분: 마무리 실습</li><li>58~60분: 핵심 정리와 다음 준비</li></ul>
+  </div>
+</section>
+
+<!-- ===== 18. 시청자의 질문 ===== -->
+<section class="slide" aria-label="18. 시청자의 질문">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 03 / 15</div><h2>시청자의 질문</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">자주 받는 질문</div><div class="d">분갈이는 언제 하는지</div></div><div class="card"><div class="n">2</div><div class="t">초보자의 실수</div><div class="d">화분에 매일 물 주기</div></div><div class="card"><div class="n">3</div><div class="t">영상 소재</div><div class="d">물을 주기 전 흙 확인법</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 19. 검색창 속 소재 ===== -->
+<section class="slide" aria-label="19. 검색창 속 소재">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 04 / 15</div><h2>검색창 속 소재</h2><ul class="bullets"><li>검색어: 내 주제와 초보 입력</li><li>관찰: 자동으로 제안되는 질문 기록</li><li>선택: 내가 실제로 설명할 질문 1개</li></ul>
+  </div>
+</section>
+
+<!-- ===== 20. 참고 영상의 관찰 기준 ===== -->
+<section class="slide" aria-label="20. 참고 영상의 관찰 기준">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 05 / 15</div><h2>참고 영상의 관찰 기준</h2><table class="tbl"><thead><tr><th scope="col">관찰 지점</th><th scope="col">기록할 내용</th></tr></thead><tbody><tr><td>제목</td><td>약속한 도움</td></tr><tr><td>도입</td><td>처음 보여 주는 문제</td></tr><tr><td>설명</td><td>순서와 사례</td></tr><tr><td>댓글</td><td>반복되는 질문</td></tr></tbody></table>
+  </div>
+</section>
+
+<!-- ===== 21. 차별화의 출발점 ===== -->
+<section class="slide" aria-label="21. 차별화의 출발점">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 06 / 15</div><h2>차별화의 출발점</h2><div class="card-grid c2"><div class="card bad"><div class="t">일반 정보</div><div class="d">분갈이에 필요한 도구 나열</div></div><div class="card good"><div class="t">내 경험</div><div class="d">집에 있는 도구로 바꾼 실제 사례</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 22. 한 영상의 한 가지 약속 ===== -->
+<section class="slide" aria-label="22. 한 영상의 한 가지 약속">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 07 / 15</div><h2>한 영상의 한 가지 약속</h2><div class="card-grid c2"><div class="card bad"><div class="t">넓은 주제</div><div class="d">식물 키우기의 모든 방법</div></div><div class="card good"><div class="t">좁힌 주제</div><div class="d">물을 주기 전 흙 확인법 1가지</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 23. 실습: 첫 영상 주제 ===== -->
+<section class="slide" aria-label="23. 실습: 첫 영상 주제">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 08 / 15</div><h2>실습: 첫 영상 주제</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-23">소재 후보 3개 작성. 각각 시청자 질문 1개 연결. 직접 보여 줄 수 있고 짧게 설명 가능한 주제 1개 선정.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-23" aria-label="실습: 첫 영상 주제 내용 복사">복사</button></div><p class="lede">결과물: 첫 영상 주제와 시청자 질문</p><button type="button" class="timer-chip" data-minutes="5" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">5:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 24. 10분 휴식 ===== -->
+<section class="slide dark" aria-label="24. 10분 휴식">
+  <div class="slide-content" style="align-items:center;text-align:center">
+    <div class="kicker">2회차 · 09 / 15 · 휴식</div><h2>10분 휴식</h2><button type="button" class="break-big" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋" aria-label="휴식 타이머 10분"><span class="time">10:00</span></button><p class="lede">눈과 어깨의 긴장 완화 · 다음 활동: 제목과 대본 작성</p>
+  </div>
+</section>
+
+<!-- ===== 25. 제목의 기본 구조 ===== -->
+<section class="slide" aria-label="25. 제목의 기본 구조">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 10 / 15</div><h2>제목의 기본 구조</h2><div class="card-grid c2"><div class="card bad"><div class="t">모호한 제목</div><div class="d">오늘의 식물 이야기</div></div><div class="card good"><div class="t">구체적인 제목</div><div class="d">초보 집사의 화분 물 주기 판단법</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 26. 도입부의 역할 ===== -->
+<section class="slide" aria-label="26. 도입부의 역할">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 11 / 15</div><h2>도입부의 역할</h2><div class="card-grid c2"><div class="card bad"><div class="t">긴 인사</div><div class="d">자기소개와 근황으로 시작</div></div><div class="card good"><div class="t">바로 제시</div><div class="d">시든 화분과 오늘 확인할 원인 제시</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 27. 대본의 기본 구조 ===== -->
+<section class="slide" aria-label="27. 대본의 기본 구조">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 12 / 15</div><h2>대본의 기본 구조</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">도입</div><div class="d">시청자의 문제 1개</div></div><div class="card"><div class="n">2</div><div class="t">본문</div><div class="d">해결 순서와 실제 사례</div></div><div class="card"><div class="n">3</div><div class="t">마무리</div><div class="d">핵심 요약과 실행 1개</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 28. AI 대본 보조 ===== -->
+<section class="slide" aria-label="28. AI 대본 보조">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 13 / 15</div><h2>AI 대본 보조</h2><div class="prompt-card"><div class="label">작성 예시와 요청문</div><blockquote id="pt-28">[시청자]를 위한 [주제] 영상의 짧은 대본을 만들어줘. 내 실제 경험은 [경험]이야. 도입·해결 순서·마무리로 구성하고 쉬운 말로 작성해줘. 없는 경험이나 수치는 만들지 말아줘.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-28" aria-label="AI 대본 보조 내용 복사">복사</button></div><p class="lede">확인: AI 초안의 사실과 내 경험 대조</p>
+  </div>
+</section>
+
+<!-- ===== 29. 실습: 첫 영상 대본 ===== -->
+<section class="slide" aria-label="29. 실습: 첫 영상 대본">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 14 / 15</div><h2>실습: 첫 영상 대본</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-29">도입: 시청자의 고민 한 문장. 본문: 해결 방법과 내 사례. 마무리: 실행 한 가지. 소리 내어 읽고 어려운 표현 삭제.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-29" aria-label="실습: 첫 영상 대본 내용 복사">복사</button></div><p class="lede">결과물: 약 1분 분량의 첫 대본</p><button type="button" class="timer-chip" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">10:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 30. 마침과 다음 준비 ===== -->
+<section class="slide title-slide" aria-label="30. 마침과 다음 준비">
+  <div class="slide-content">
+    <div class="kicker">2회차 · 15 / 15 · 마침</div><h1>마침과 다음 준비</h1><p class="lede">완성: 주제·제목·짧은 대본</p><div class="meta-row"><span>다음 준비: 스마트폰·지지대·촬영 소품</span></div>
+  </div>
+</section>
+
+<!-- ===== 31. 스마트폰으로 만드는 첫 영상 ===== -->
+<section class="slide title-slide" aria-label="31. 스마트폰으로 만드는 첫 영상">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 스마트폰 촬영과 기본 편집</div><h1>스마트폰으로 만드는 첫 영상</h1><p class="lede">오늘의 결과물: 1분 안팎의 완성 영상</p><div class="meta-row"><span>40~60대</span><span>수업 50분 + 휴식 10분</span><span>3 / 5회</span></div>
+  </div>
+</section>
+
+<!-- ===== 32. 오늘의 순서 ===== -->
+<section class="slide" aria-label="32. 오늘의 순서">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 02 / 15</div><h2>오늘의 순서</h2><p class="lede">촬영 준비 → 시험 촬영 → 기본 편집</p><ul class="bullets"><li>0~25분: 설명·시연</li><li>25~30분: 첫 실습 · 30~40분: 휴식</li><li>40~48분: 설명·시연 · 48~58분: 마무리 실습</li><li>58~60분: 핵심 정리와 다음 준비</li></ul>
+  </div>
+</section>
+
+<!-- ===== 33. 최소 촬영 준비물 ===== -->
+<section class="slide" aria-label="33. 최소 촬영 준비물">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 03 / 15</div><h2>최소 촬영 준비물</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">스마트폰</div><div class="d">배터리와 저장 공간 확인</div></div><div class="card"><div class="n">2</div><div class="t">지지대</div><div class="d">흔들리지 않는 고정</div></div><div class="card"><div class="n">3</div><div class="t">조용한 공간</div><div class="d">생활 소음이 적은 장소</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 34. 영상 방향의 선택 ===== -->
+<section class="slide" aria-label="34. 영상 방향의 선택">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 04 / 15</div><h2>영상 방향의 선택</h2><table class="tbl"><thead><tr><th scope="col">방향</th><th scope="col">활용 예</th><th scope="col">촬영 기준</th></tr></thead><tbody><tr><td>가로형</td><td>넓은 작업대와 설명</td><td>좌우 작업 공간 확보</td></tr><tr><td>세로형</td><td>손동작과 짧은 시연</td><td>위아래 대상 배치</td></tr></tbody></table>
+  </div>
+</section>
+
+<!-- ===== 35. 안정적인 화면 구도 ===== -->
+<section class="slide" aria-label="35. 안정적인 화면 구도">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 05 / 15</div><h2>안정적인 화면 구도</h2><div class="card-grid c2"><div class="card bad"><div class="t">흔들리는 화면</div><div class="d">손에 들고 촬영한 작업 과정</div></div><div class="card good"><div class="t">고정된 화면</div><div class="d">거치대 고정과 대상 중심 배치</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 36. 자연광의 활용 ===== -->
+<section class="slide" aria-label="36. 자연광의 활용">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 06 / 15</div><h2>자연광의 활용</h2><div class="card-grid c2"><div class="card bad"><div class="t">창문을 등진 배치</div><div class="d">얼굴과 대상이 어두운 화면</div></div><div class="card good"><div class="t">창문을 마주한 배치</div><div class="d">얼굴과 대상이 밝은 화면</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 37. 선명한 음성 ===== -->
+<section class="slide" aria-label="37. 선명한 음성">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 07 / 15</div><h2>선명한 음성</h2><div class="card-grid c2"><div class="card bad"><div class="t">멀리 놓인 스마트폰</div><div class="d">작은 목소리와 큰 주변 소음</div></div><div class="card good"><div class="t">가까운 녹음 위치</div><div class="d">시험 녹음 후 거리 조정</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 38. 실습: 30초 시험 촬영 ===== -->
+<section class="slide" aria-label="38. 실습: 30초 시험 촬영">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 08 / 15</div><h2>실습: 30초 시험 촬영</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-38">스마트폰 고정 후 대본 일부를 30초 촬영. 직접 재생하며 흔들림·밝기·목소리 확인. 가장 불편한 요소 1개 조정.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-38" aria-label="실습: 30초 시험 촬영 내용 복사">복사</button></div><p class="lede">결과물: 화면과 음성을 확인한 시험 영상</p><button type="button" class="timer-chip" data-minutes="5" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">5:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 39. 10분 휴식 ===== -->
+<section class="slide dark" aria-label="39. 10분 휴식">
+  <div class="slide-content" style="align-items:center;text-align:center">
+    <div class="kicker">3회차 · 09 / 15 · 휴식</div><h2>10분 휴식</h2><button type="button" class="break-big" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋" aria-label="휴식 타이머 10분"><span class="time">10:00</span></button><p class="lede">눈과 어깨의 긴장 완화 · 다음 활동: 촬영본 자르기와 저장</p>
+  </div>
+</section>
+
+<!-- ===== 40. 편집의 기본 순서 ===== -->
+<section class="slide" aria-label="40. 편집의 기본 순서">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 10 / 15</div><h2>편집의 기본 순서</h2><ul class="bullets"><li>가져오기: 촬영 영상 선택</li><li>자르기: 실수와 긴 침묵 삭제</li><li>자막: 핵심 문장 입력</li><li>저장: 완성 영상 내보내기</li></ul>
+  </div>
+</section>
+
+<!-- ===== 41. 불필요한 구간 삭제 ===== -->
+<section class="slide" aria-label="41. 불필요한 구간 삭제">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 11 / 15</div><h2>불필요한 구간 삭제</h2><div class="card-grid c2"><div class="card bad"><div class="t">편집 전</div><div class="d">녹화 준비·긴 침묵·반복 설명</div></div><div class="card good"><div class="t">편집 후</div><div class="d">설명 시작부터 핵심 내용만 연결</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 42. 읽기 쉬운 자막 ===== -->
+<section class="slide" aria-label="42. 읽기 쉬운 자막">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 12 / 15</div><h2>읽기 쉬운 자막</h2><div class="card-grid c2"><div class="card bad"><div class="t">읽기 어려운 자막</div><div class="d">작은 글씨와 긴 설명</div></div><div class="card good"><div class="t">읽기 쉬운 자막</div><div class="d">큰 글씨와 짧은 핵심 문장</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 43. 영상 파일 저장 ===== -->
+<section class="slide" aria-label="43. 영상 파일 저장">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 13 / 15</div><h2>영상 파일 저장</h2><ul class="bullets"><li>내보내기: 편집 화면의 저장 기능 선택</li><li>구분: 편집 프로젝트와 완성 영상 파일</li><li>확인: 갤러리에서 소리와 끝부분 재생</li></ul>
+  </div>
+</section>
+
+<!-- ===== 44. 실습: 첫 영상 완성 ===== -->
+<section class="slide" aria-label="44. 실습: 첫 영상 완성">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 14 / 15</div><h2>실습: 첫 영상 완성</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-44">준비한 대본으로 짧게 촬영. 긴 침묵 1곳 삭제, 핵심 자막 1개 추가, 영상 파일 저장. 완성본 처음부터 끝까지 재생.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-44" aria-label="실습: 첫 영상 완성 내용 복사">복사</button></div><p class="lede">결과물: 1분 안팎의 완성 영상</p><button type="button" class="timer-chip" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">10:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 45. 마침과 다음 준비 ===== -->
+<section class="slide title-slide" aria-label="45. 마침과 다음 준비">
+  <div class="slide-content">
+    <div class="kicker">3회차 · 15 / 15 · 마침</div><h1>마침과 다음 준비</h1><p class="lede">완성: 재생 가능한 첫 영상 파일</p><div class="meta-row"><span>다음 준비: 유튜브 계정과 영상 제목</span></div>
+  </div>
+</section>
+
+<!-- ===== 46. 첫 업로드와 개선의 시작 ===== -->
+<section class="slide title-slide" aria-label="46. 첫 업로드와 개선의 시작">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 영상 업로드와 시청 반응 분석</div><h1>첫 업로드와 개선의 시작</h1><p class="lede">오늘의 결과물: 업로드 영상과 개선안</p><div class="meta-row"><span>40~60대</span><span>수업 50분 + 휴식 10분</span><span>4 / 5회</span></div>
+  </div>
+</section>
+
+<!-- ===== 47. 오늘의 순서 ===== -->
+<section class="slide" aria-label="47. 오늘의 순서">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 02 / 15</div><h2>오늘의 순서</h2><p class="lede">채널 점검 → 업로드 → 반응 해석</p><ul class="bullets"><li>0~25분: 설명·시연</li><li>25~30분: 첫 실습 · 30~40분: 휴식</li><li>40~48분: 설명·시연 · 48~58분: 마무리 실습</li><li>58~60분: 핵심 정리와 다음 준비</li></ul>
+  </div>
+</section>
+
+<!-- ===== 48. 채널 기본 정보 ===== -->
+<section class="slide" aria-label="48. 채널 기본 정보">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 03 / 15</div><h2>채널 기본 정보</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">채널 이름</div><div class="d">기억하기 쉬운 주제 표현</div></div><div class="card"><div class="n">2</div><div class="t">한 줄 소개</div><div class="d">누구를 위한 어떤 도움인지</div></div><div class="card"><div class="n">3</div><div class="t">채널 이미지</div><div class="d">작게 보여도 구별되는 그림</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 49. 썸네일의 역할 ===== -->
+<section class="slide" aria-label="49. 썸네일의 역할">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 04 / 15</div><h2>썸네일의 역할</h2><div class="card-grid c2"><div class="card bad"><div class="t">복잡한 썸네일</div><div class="d">작은 사진 여러 장과 긴 문구</div></div><div class="card good"><div class="t">간결한 썸네일</div><div class="d">핵심 대상 1개와 짧은 문구</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 50. 제목과 썸네일의 조합 ===== -->
+<section class="slide" aria-label="50. 제목과 썸네일의 조합">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 05 / 15</div><h2>제목과 썸네일의 조합</h2><div class="card-grid c2"><div class="card bad"><div class="t">같은 문장 반복</div><div class="d">제목과 이미지의 설명 중복</div></div><div class="card good"><div class="t">내용 보완</div><div class="d">제목은 해결법·이미지는 문제 장면</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 51. 업로드의 기본 흐름 ===== -->
+<section class="slide" aria-label="51. 업로드의 기본 흐름">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 06 / 15</div><h2>업로드의 기본 흐름</h2><ul class="bullets"><li>영상 선택: 완성 파일 불러오기</li><li>정보 입력: 제목·설명·시청자층 확인</li><li>게시 전 확인: 검사 결과와 공개 범위 점검</li></ul>
+  </div>
+</section>
+
+<!-- ===== 52. 공개 범위의 선택 ===== -->
+<section class="slide" aria-label="52. 공개 범위의 선택">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 07 / 15</div><h2>공개 범위의 선택</h2><table class="tbl"><thead><tr><th scope="col">설정</th><th scope="col">시청 범위</th></tr></thead><tbody><tr><td>공개</td><td>누구나 시청·검색 가능</td></tr><tr><td>일부 공개</td><td>링크를 아는 사람의 시청·재공유 가능</td></tr><tr><td>비공개</td><td>본인과 선택한 사람만 시청</td></tr></tbody></table><p class="lede"><a href="https://support.google.com/youtube/answer/157177?hl=ko" target="_blank" rel="noopener">참고: 유튜브 공식 도움말</a></p>
+  </div>
+</section>
+
+<!-- ===== 53. 실습: 첫 영상 업로드 ===== -->
+<section class="slide" aria-label="53. 실습: 첫 영상 업로드">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 08 / 15</div><h2>실습: 첫 영상 업로드</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-53">완성 파일 업로드 후 제목 입력. 시청자층과 공개 범위 확인. 비공개 또는 일부 공개 저장 후 영상 재생.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-53" aria-label="실습: 첫 영상 업로드 내용 복사">복사</button></div><p class="lede">결과물: 재생을 확인한 업로드 영상</p><button type="button" class="timer-chip" data-minutes="5" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">5:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 54. 10분 휴식 ===== -->
+<section class="slide dark" aria-label="54. 10분 휴식">
+  <div class="slide-content" style="align-items:center;text-align:center">
+    <div class="kicker">4회차 · 09 / 15 · 휴식</div><h2>10분 휴식</h2><button type="button" class="break-big" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋" aria-label="휴식 타이머 10분"><span class="time">10:00</span></button><p class="lede">눈과 어깨의 긴장 완화 · 다음 활동: 예시 데이터로 반응 해석</p>
+  </div>
+</section>
+
+<!-- ===== 55. 시청 반응의 흐름 ===== -->
+<section class="slide" aria-label="55. 시청 반응의 흐름">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 10 / 15</div><h2>시청 반응의 흐름</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">노출</div><div class="d">썸네일이 표시된 기회</div></div><div class="card"><div class="n">2</div><div class="t">클릭</div><div class="d">관심을 갖고 영상 선택</div></div><div class="card"><div class="n">3</div><div class="t">시청</div><div class="d">내용을 보며 머문 시간</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 56. 클릭률의 의미 ===== -->
+<section class="slide" aria-label="56. 클릭률의 의미">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 11 / 15</div><h2>클릭률의 의미</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">의미</div><div class="d">집계된 노출 중 시청으로 이어진 비율</div></div><div class="card"><div class="n">2</div><div class="t">관찰</div><div class="d">제목과 썸네일의 선택 반응</div></div><div class="card"><div class="n">3</div><div class="t">비교</div><div class="d">비슷한 주제와 유입 조건</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 57. 시청 지속 시간의 의미 ===== -->
+<section class="slide" aria-label="57. 시청 지속 시간의 의미">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 12 / 15</div><h2>시청 지속 시간의 의미</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">의미</div><div class="d">영상 한 번당 평균 시청 시간</div></div><div class="card"><div class="n">2</div><div class="t">관찰</div><div class="d">시청자가 많이 떠나는 구간</div></div><div class="card"><div class="n">3</div><div class="t">개선</div><div class="d">긴 인사와 반복 설명 점검</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 58. 초기 데이터의 한계 ===== -->
+<section class="slide" aria-label="58. 초기 데이터의 한계">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 13 / 15</div><h2>초기 데이터의 한계</h2><div class="card-grid c2"><div class="card bad"><div class="t">성급한 판단</div><div class="d">영상 1편의 적은 조회수로 실패 단정</div></div><div class="card good"><div class="t">꾸준한 관찰</div><div class="d">여러 영상의 주제와 반응 함께 기록</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 59. 실습: 다음 영상 개선안 ===== -->
+<section class="slide" aria-label="59. 실습: 다음 영상 개선안">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 14 / 15</div><h2>실습: 다음 영상 개선안</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-59">연습용 사례: 1분 영상의 평균 시청 시간 15초, 도입 인사 20초. 먼저 바꿀 요소 1개와 수정 방법 작성. 실제 채널의 성과 기준과 구분.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-59" aria-label="실습: 다음 영상 개선안 내용 복사">복사</button></div><p class="lede">결과물: 다음 영상의 개선점 1개</p><button type="button" class="timer-chip" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">10:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 60. 마침과 다음 준비 ===== -->
+<section class="slide title-slide" aria-label="60. 마침과 다음 준비">
+  <div class="slide-content">
+    <div class="kicker">4회차 · 15 / 15 · 마침</div><h1>마침과 다음 준비</h1><p class="lede">완성: 첫 업로드와 개선점 1개</p><div class="meta-row"><span>다음 준비: 후속 영상 주제와 제작 가능 시간</span></div>
+  </div>
+</section>
+
+<!-- ===== 61. 지속 가능한 유튜브 수익화 ===== -->
+<section class="slide title-slide" aria-label="61. 지속 가능한 유튜브 수익화">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 수익화 준비와 지속 운영 계획</div><h1>지속 가능한 유튜브 수익화</h1><p class="lede">오늘의 결과물: 30일 운영 계획</p><div class="meta-row"><span>40~60대</span><span>수업 50분 + 휴식 10분</span><span>5 / 5회</span></div>
+  </div>
+</section>
+
+<!-- ===== 62. 오늘의 순서 ===== -->
+<section class="slide" aria-label="62. 오늘의 순서">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 02 / 15</div><h2>오늘의 순서</h2><p class="lede">수익화 준비 → 위험 점검 → 운영 계획</p><ul class="bullets"><li>0~25분: 설명·시연</li><li>25~30분: 첫 실습 · 30~40분: 휴식</li><li>40~48분: 설명·시연 · 48~58분: 마무리 실습</li><li>58~60분: 핵심 정리와 다음 준비</li></ul>
+  </div>
+</section>
+
+<!-- ===== 63. 광고 수익화의 준비 ===== -->
+<section class="slide" aria-label="63. 광고 수익화의 준비">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 03 / 15</div><h2>광고 수익화의 준비</h2><ul class="bullets"><li>확인 경로: 유튜브 스튜디오 → 수익 창출</li><li>신청 준비: 계정에 표시된 요건과 정책 확인</li><li>심사: 신청 자격 충족 후 채널 검토</li></ul><p class="lede"><a href="https://support.google.com/youtube/answer/72851?hl=ko" target="_blank" rel="noopener">참고: 유튜브 공식 도움말</a></p>
+  </div>
+</section>
+
+<!-- ===== 64. 채널에 맞는 수익 방식 ===== -->
+<section class="slide" aria-label="64. 채널에 맞는 수익 방식">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 04 / 15</div><h2>채널에 맞는 수익 방식</h2><table class="tbl"><thead><tr><th scope="col">시청자 요구</th><th scope="col">연결 가능한 방식</th></tr></thead><tbody><tr><td>꾸준한 정보 시청</td><td>광고 수익</td></tr><tr><td>사용 제품 정보</td><td>제휴·협찬</td></tr><tr><td>더 깊은 학습</td><td>자료·강의·서비스</td></tr></tbody></table>
+  </div>
+</section>
+
+<!-- ===== 65. 제휴 수익의 구조 ===== -->
+<section class="slide" aria-label="65. 제휴 수익의 구조">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 05 / 15</div><h2>제휴 수익의 구조</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">소개</div><div class="d">직접 확인한 제품의 장단점</div></div><div class="card"><div class="n">2</div><div class="t">연결</div><div class="d">제휴 프로그램의 상품 링크</div></div><div class="card"><div class="n">3</div><div class="t">정산</div><div class="d">약정한 성과와 조건에 따른 수수료</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 66. 협찬의 기본 구조 ===== -->
+<section class="slide" aria-label="66. 협찬의 기본 구조">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 06 / 15</div><h2>협찬의 기본 구조</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">제안</div><div class="d">채널 주제와 브랜드의 적합성</div></div><div class="card"><div class="n">2</div><div class="t">합의</div><div class="d">제작 범위·보상·사용 권한</div></div><div class="card"><div class="n">3</div><div class="t">제작</div><div class="d">합의한 내용과 광고 관계 표시</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 67. 자체 상품과 서비스 ===== -->
+<section class="slide" aria-label="67. 자체 상품과 서비스">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 07 / 15</div><h2>자체 상품과 서비스</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">자료</div><div class="d">경험을 정리한 점검표</div></div><div class="card"><div class="n">2</div><div class="t">강의</div><div class="d">순서대로 따라 하는 수업</div></div><div class="card"><div class="n">3</div><div class="t">서비스</div><div class="d">고객의 구체적인 문제 해결</div></div></div>
+  </div>
+</section>
+
+<!-- ===== 68. 실습: 수익 모델 선택 ===== -->
+<section class="slide" aria-label="68. 실습: 수익 모델 선택">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 08 / 15</div><h2>실습: 수익 모델 선택</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-68">내 시청자가 원하는 도움 1개 작성. 광고·제휴·협찬·자체 상품 중 방식 1개 선정. 선택 이유와 준비할 조건 각각 기록.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-68" aria-label="실습: 수익 모델 선택 내용 복사">복사</button></div><p class="lede">결과물: 내 채널의 수익 모델 후보</p><button type="button" class="timer-chip" data-minutes="5" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">5:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 69. 10분 휴식 ===== -->
+<section class="slide dark" aria-label="69. 10분 휴식">
+  <div class="slide-content" style="align-items:center;text-align:center">
+    <div class="kicker">5회차 · 09 / 15 · 휴식</div><h2>10분 휴식</h2><button type="button" class="break-big" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋" aria-label="휴식 타이머 10분"><span class="time">10:00</span></button><p class="lede">눈과 어깨의 긴장 완화 · 다음 활동: 권리 점검과 30일 계획</p>
+  </div>
+</section>
+
+<!-- ===== 70. 저작권 점검 ===== -->
+<section class="slide" aria-label="70. 저작권 점검">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 10 / 15</div><h2>저작권 점검</h2><table class="tbl"><thead><tr><th scope="col">자료</th><th scope="col">사용 전 확인</th></tr></thead><tbody><tr><td>영상·사진</td><td>직접 제작 여부와 사용 허락</td></tr><tr><td>음악</td><td>허용 범위와 표시 조건</td></tr><tr><td>외부 자료</td><td>상업적 사용·편집 허용 여부</td></tr></tbody></table><p class="lede"><a href="https://support.google.com/youtube/answer/2797466?hl=ko" target="_blank" rel="noopener">참고: 유튜브 공식 도움말</a></p>
+  </div>
+</section>
+
+<!-- ===== 71. 광고 관계의 표시 ===== -->
+<section class="slide" aria-label="71. 광고 관계의 표시">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 11 / 15</div><h2>광고 관계의 표시</h2><div class="card-grid c3"><div class="card"><div class="n">1</div><div class="t">관계 공개</div><div class="d">제품 제공·제작비·구매 수수료 명시</div></div><div class="card"><div class="n">2</div><div class="t">플랫폼 설정</div><div class="d">해당 시 유료 프로모션 항목 확인</div></div><div class="card"><div class="n">3</div><div class="t">추가 확인</div><div class="d">적용되는 표시 규정과 계약 조건</div></div></div><p class="lede"><a href="https://support.google.com/youtube/answer/154235?hl=ko" target="_blank" rel="noopener">참고: 유튜브 공식 도움말</a></p>
+  </div>
+</section>
+
+<!-- ===== 72. 수익과 비용의 기록 ===== -->
+<section class="slide" aria-label="72. 수익과 비용의 기록">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 12 / 15</div><h2>수익과 비용의 기록</h2><table class="tbl"><thead><tr><th scope="col">항목</th><th scope="col">기록 예시</th></tr></thead><tbody><tr><td>수입</td><td>입금일·수익 종류·금액</td></tr><tr><td>비용</td><td>결제일·제작 용도·금액</td></tr><tr><td>증빙</td><td>정산 내역·영수증 보관</td></tr></tbody></table>
+  </div>
+</section>
+
+<!-- ===== 73. 지속 가능한 제작 주기 ===== -->
+<section class="slide" aria-label="73. 지속 가능한 제작 주기">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 13 / 15</div><h2>지속 가능한 제작 주기</h2><table class="tbl"><thead><tr><th scope="col">요일 예시</th><th scope="col">활동</th></tr></thead><tbody><tr><td>월요일</td><td>주제 선정과 짧은 대본</td></tr><tr><td>수요일</td><td>촬영과 기본 편집</td></tr><tr><td>금요일</td><td>게시와 다음 개선점 기록</td></tr></tbody></table>
+  </div>
+</section>
+
+<!-- ===== 74. 실습: 30일 운영 계획 ===== -->
+<section class="slide" aria-label="74. 실습: 30일 운영 계획">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 14 / 15</div><h2>실습: 30일 운영 계획</h2><div class="prompt-card"><div class="label">실습 작성 틀</div><blockquote id="pt-74">1주차: 첫 영상 점검과 다음 주제. 2주차: 두 번째 영상 제작. 3주차: 반응을 반영한 후속 영상. 4주차: 결과 기록과 다음 계획. 각 주의 제작일·게시일 입력.</blockquote><button type="button" class="copy-btn" data-copy-target="pt-74" aria-label="실습: 30일 운영 계획 내용 복사">복사</button></div><p class="lede">결과물: 내 일정에 맞춘 30일 계획표</p><button type="button" class="timer-chip" data-minutes="10" title="클릭: 시작·일시정지 · 더블클릭 또는 R: 리셋">⏱ <span class="time">10:00</span> 실습 시간 <span class="state">정지</span></button>
+  </div>
+</section>
+
+<!-- ===== 75. 마침과 첫 실행 약속 ===== -->
+<section class="slide title-slide" aria-label="75. 마침과 첫 실행 약속">
+  <div class="slide-content">
+    <div class="kicker">5회차 · 15 / 15 · 마침</div><h1>마침과 첫 실행 약속</h1><p class="lede">완성: 채널 기획·첫 영상·30일 계획</p><div class="meta-row"><span>7일 안의 실행: 할 일 1개와 완료일 확정</span></div>
+  </div>
+</section>
+
+</main>
+
+<div id="progress" aria-hidden="true"></div>
+<nav id="nav" aria-label="슬라이드 이동">
+  <a href="index.html" target="_blank" rel="noopener" class="hide-sm" aria-label="강의 홈 새 창으로 열기">⌂ 홈</a>
+  <button type="button" id="navPrev" aria-label="이전 슬라이드">◀</button>
+  <span id="counter" aria-live="polite">1 / 8</span>
+  <button type="button" id="navNext" aria-label="다음 슬라이드">▶</button>
+  <span class="grow"></span>
+  <span class="hint hide-sm">← → 이동 · G 전체보기 · P PDF</span>
+  <button type="button" id="gridBtn" aria-haspopup="dialog" aria-controls="gridOverlay">▦ 전체 보기</button>
+  <button type="button" id="printBtn" class="hide-sm">⎙ PDF 저장</button>
+</nav>
+
+<div class="grid-overlay" id="gridOverlay" role="dialog" aria-modal="true" aria-label="전체 슬라이드 보기">
+  <div class="grid-head"><h2>전체 보기</h2><button type="button" id="gridClose">닫기 (Esc)</button></div>
+  <div class="grid-list" id="gridList"></div>
+</div>
+
+<script>
+(function(){
+  /* ▼ 내 강의 고유 접두사로 변경 (예: 'ai0927_') */
+  var LS = 'mykit_';
+
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(stage.querySelectorAll(':scope > section.slide'));
+  var total = slides.length;
+  var STORAGE_KEY = LS + 'slide';
+  var idx = 0;
+
+  function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) { /* 저장 불가 환경 · 무시 */ } }
+
+  /* 시작 위치: ?slide=N 우선, 없으면 마지막으로 본 장 */
+  var params = new URLSearchParams(location.search);
+  var qSlide = parseInt(params.get('slide'), 10);
+  if (!isNaN(qSlide) && qSlide >= 1 && qSlide <= total) {
+    idx = qSlide - 1;
+  } else {
+    var saved = parseInt(lsGet(STORAGE_KEY), 10);
+    if (!isNaN(saved) && saved >= 0 && saved < total) idx = saved;
+  }
+
+  var progressEl = document.getElementById('progress');
+  var counterEl = document.getElementById('counter');
+  var navPrev = document.getElementById('navPrev');
+  var navNext = document.getElementById('navNext');
+  var gridOverlay = document.getElementById('gridOverlay');
+  var gridList = document.getElementById('gridList');
+  var minis = [];
+  var lastFocus = null;
+
+  function show(i){
+    idx = Math.max(0, Math.min(total - 1, i));
+    slides.forEach(function(s, n){
+      s.classList.toggle('active', n === idx);
+      s.setAttribute('aria-hidden', n === idx ? 'false' : 'true');
+    });
+    progressEl.style.width = ((idx + 1) / total * 100) + '%';
+    counterEl.textContent = (idx + 1) + ' / ' + total;
+    navPrev.disabled = idx === 0;
+    navNext.disabled = idx === total - 1;
+    minis.forEach(function(m, n){ m.classList.toggle('current', n === idx); });
+    lsSet(STORAGE_KEY, String(idx));
+  }
+
+  function scaleMinis(){
+    minis.forEach(function(m){ m.firstChild.style.transform = 'scale(' + (m.clientWidth / 960) + ')'; });
+  }
+  window.addEventListener('resize', function(){ if (gridOverlay.classList.contains('open')) scaleMinis(); });
+  function openGrid(){
+    lastFocus = document.activeElement;
+    gridOverlay.classList.add('open');
+    scaleMinis();
+    var c = minis[idx];
+    if (c) { c.scrollIntoView({block:'center'}); c.focus(); }
+  }
+  function closeGrid(){
+    gridOverlay.classList.remove('open');
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select')) return;
+    if (gridOverlay.classList.contains('open')) {
+      if (e.key === 'Escape' || e.key === 'g' || e.key === 'G') { closeGrid(); }
+      return;
+    }
+    /* 버튼에 포커스가 있을 때 스페이스·엔터는 버튼 동작에 양보 */
+    var onButton = t && t.closest && t.closest('button, a');
+    if ((e.key === ' ' || e.key === 'Enter') && onButton) return;
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(idx + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(idx - 1); }
+    else if (e.key === 'g' || e.key === 'G' || e.key === 'ㅎ') { openGrid(); }
+    else if (e.key === 'p' || e.key === 'P' || e.key === 'ㅔ') { e.preventDefault(); window.print(); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(total - 1); }
+  });
+
+  /* 무대 클릭: 오른쪽 절반 다음 · 왼쪽 절반 이전 (버튼·링크·프롬프트 카드 제외) */
+  stage.addEventListener('click', function(e){
+    if (e.target.closest('button, a, .prompt-card')) return;
+    var rect = stage.getBoundingClientRect();
+    if (e.clientX - rect.left > rect.width / 2) show(idx + 1); else show(idx - 1);
+  });
+  navPrev.addEventListener('click', function(){ show(idx - 1); });
+  navNext.addEventListener('click', function(){ show(idx + 1); });
+  document.getElementById('gridBtn').addEventListener('click', openGrid);
+  document.getElementById('gridClose').addEventListener('click', closeGrid);
+  document.getElementById('printBtn').addEventListener('click', function(){ window.print(); });
+
+  /* 타이머: 벽시계 기준 (탭이 뒤로 가도 시간이 밀리지 않음) */
+  function initTimer(el){
+    var totalSec = parseInt(el.dataset.minutes, 10) * 60;
+    var remaining = totalSec;
+    var endAt = null;
+    var running = false;
+    var tickId = null;
+    var timeEl = el.querySelector('.time');
+    var stateEl = el.querySelector('.state');
+
+    function currentRemaining(){
+      if (!running) return remaining;
+      return Math.round((endAt - Date.now()) / 1000);
+    }
+    function format(sec){
+      var neg = sec < 0, abs = Math.abs(sec);
+      var m = Math.floor(abs / 60), s = abs % 60;
+      return (neg ? '+' : '') + m + ':' + (s < 10 ? '0' + s : s);
+    }
+    function render(){
+      var sec = currentRemaining();
+      timeEl.textContent = format(sec);
+      el.classList.toggle('warn', sec <= 60);
+      if (stateEl) stateEl.textContent = running ? '진행' : '정지';
+    }
+    function start(){
+      if (running) return;
+      running = true;
+      endAt = Date.now() + remaining * 1000;
+      el.classList.add('running');
+      tickId = setInterval(render, 250);
+      render();
+    }
+    function pause(){
+      if (running) remaining = currentRemaining();
+      running = false;
+      el.classList.remove('running');
+      clearInterval(tickId);
+      render();
+    }
+    function reset(){
+      running = false;
+      clearInterval(tickId);
+      remaining = totalSec;
+      el.classList.remove('running');
+      render();
+    }
+    el.addEventListener('click', function(){ if (running) pause(); else start(); });
+    el.addEventListener('dblclick', function(e){ e.stopPropagation(); reset(); });
+    el.addEventListener('keydown', function(e){ if (e.key === 'r' || e.key === 'R' || e.key === 'ㄱ') { e.preventDefault(); reset(); } });
+    render();
+  }
+  stage.querySelectorAll('.timer-chip, .break-big[data-minutes]').forEach(initTimer);
+
+  /* 복사 버튼: clipboard API가 700ms 안에 끝나지 않으면 textarea 폴백 · 완료 표시는 한 번만 */
+  stage.querySelectorAll('.copy-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var target = document.getElementById(btn.dataset.copyTarget);
+      var text = target ? target.textContent : '';
+      var settled = false;
+      function done(){
+        if (settled) return;
+        settled = true;
+        btn.textContent = '복사됨 ✓';
+        btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = '복사'; btn.classList.remove('copied'); }, 1500);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        setTimeout(function(){ if (!settled) fallbackCopy(text, done); }, 700);
+        navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text, done); });
+      } else {
+        fallbackCopy(text, done);
+      }
+    });
+  });
+  function fallbackCopy(text, done){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* 구형 브라우저 · 무시 */ }
+    document.body.removeChild(ta);
+    done();
+  }
+
+  /* 전체보기 축소판: 타이머·복사 핸들러를 붙인 뒤 마지막에 생성 · 복제본은 inert로 포커스 제외 */
+  slides.forEach(function(s, n){
+    var mini = document.createElement('div');
+    mini.className = 'mini';
+    mini.tabIndex = 0;
+    mini.setAttribute('role', 'button');
+    mini.setAttribute('aria-label', (s.getAttribute('aria-label') || String(n + 1)) + ' 슬라이드로 이동');
+    var copy = document.createElement('div');
+    copy.className = s.className.replace(/\bactive\b/, '').trim();
+    copy.setAttribute('aria-hidden', 'true');
+    copy.setAttribute('inert', '');
+    copy.innerHTML = s.innerHTML;
+    copy.querySelectorAll('[id]').forEach(function(el){ el.removeAttribute('id'); });
+    var num = document.createElement('span');
+    num.className = 'mini-num';
+    num.setAttribute('aria-hidden', 'true');
+    num.textContent = n + 1;
+    var inner = document.createElement('div');
+    inner.className = 'mini-inner';
+    inner.appendChild(copy);
+    mini.appendChild(inner);
+    mini.appendChild(num);
+    mini.addEventListener('click', function(){ show(n); closeGrid(); });
+    mini.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(n); closeGrid(); } });
+    gridList.appendChild(mini);
+    minis.push(mini);
+  });
+  show(idx);
+})();
+</script>
+</body>
+</html>
