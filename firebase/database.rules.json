@@ -1,0 +1,21 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "admins": { "$uid": { ".read": "auth != null && auth.uid === $uid" } },
+    "decks": {
+      "youtube-course-20261012": {
+        "state": {
+          ".read": true,
+          ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+          ".validate": "newData.hasChildren(['slide', 'locked', 'pdf', 'updatedAt'])",
+          "slide": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 75 && newData.val() % 1 === 0" },
+          "locked": { ".validate": "newData.isBoolean()" },
+          "pdf": { ".validate": "newData.isBoolean()" },
+          "updatedAt": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
