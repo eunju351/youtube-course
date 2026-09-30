@@ -12,8 +12,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>[강의 제목] 슬라이드</title>
-<meta name="description" content="[강의 제목] 수업 슬라이드 · [날짜] · 강사 [이름]">
+<title>유튜브 수익화 · 마인쌤 슬라이드</title>
+<meta name="description" content="40~60대 유튜브 수익화 수업 · 2026년 10월 12일 · 마인쌤">
 <meta name="theme-color" content="#111111">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -172,6 +172,13 @@ table.tbl td:first-child{color:var(--sub)}
     break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #stage > .slide:last-child{break-after:auto;page-break-after:auto}
 }
+#syncBar{position:fixed;top:8px;left:8px;right:8px;z-index:20;display:flex;align-items:center;gap:6px;flex-wrap:wrap;pointer-events:none;font-size:12px}
+#syncBar>*{pointer-events:auto;background:#111;color:white;border-radius:8px;padding:4px 10px}
+#syncBar button{font:inherit;min-height:44px;cursor:pointer}
+#syncBar [hidden]{display:none}
+#syncMessage:empty{display:none}
+#syncMessage{max-width:100%;overflow-wrap:anywhere}
+@media print{#syncBar{display:none!important}}
 </style>
 </head>
 <body>
@@ -709,11 +716,12 @@ table.tbl td:first-child{color:var(--sub)}
 
 </main>
 
+<div id="syncBar" aria-label="청중 동기화"><span id="syncStatus" role="status">동기화 연결 대기</span><button id="syncLogin" type="button" hidden>Google 로그인</button><button id="syncLock" type="button" hidden>청중 잠금 ON</button><span id="syncMessage" role="status"></span></div>
 <div id="progress" aria-hidden="true"></div>
 <nav id="nav" aria-label="슬라이드 이동">
   <a href="index.html" target="_blank" rel="noopener" class="hide-sm" aria-label="강의 홈 새 창으로 열기">⌂ 홈</a>
   <button type="button" id="navPrev" aria-label="이전 슬라이드">◀</button>
-  <span id="counter" aria-live="polite">1 / 8</span>
+  <span id="counter" aria-live="polite">1 / 75</span>
   <button type="button" id="navNext" aria-label="다음 슬라이드">▶</button>
   <span class="grow"></span>
   <span class="hint hide-sm">← → 이동 · G 전체보기 · P PDF</span>
@@ -726,10 +734,12 @@ table.tbl td:first-child{color:var(--sub)}
   <div class="grid-list" id="gridList"></div>
 </div>
 
+<script src="firebase/firebase-config.js"></script>
 <script>
+window.courseSync={canNavigate:location.protocol==='file:' || new URLSearchParams(location.search).has('view'),onNavigate:null};
 (function(){
   /* ▼ 내 강의 고유 접두사로 변경 (예: 'ai0927_') */
-  var LS = 'mykit_';
+  var LS = 'youtube20261012_';
 
   var stage = document.getElementById('stage');
   var slides = Array.prototype.slice.call(stage.querySelectorAll(':scope > section.slide'));
@@ -759,7 +769,8 @@ table.tbl td:first-child{color:var(--sub)}
   var minis = [];
   var lastFocus = null;
 
-  function show(i){
+  function show(i, remote){
+    if(!remote && !window.courseSync.canNavigate) return;
     idx = Math.max(0, Math.min(total - 1, i));
     slides.forEach(function(s, n){
       s.classList.toggle('active', n === idx);
@@ -771,6 +782,7 @@ table.tbl td:first-child{color:var(--sub)}
     navNext.disabled = idx === total - 1;
     minis.forEach(function(m, n){ m.classList.toggle('current', n === idx); });
     lsSet(STORAGE_KEY, String(idx));
+    if(!remote && window.courseSync.onNavigate) window.courseSync.onNavigate(idx);
   }
 
   function scaleMinis(){
@@ -935,8 +947,14 @@ table.tbl td:first-child{color:var(--sub)}
     gridList.appendChild(mini);
     minis.push(mini);
   });
-  show(idx);
+  window.courseDeck={show:function(n){show(n,true);},get index(){return idx;},total:total};
+  show(idx,true);
 })();
+</script>
+<script type="module">
+if(location.protocol!=='file:'){
+  import('./firebase/course-sync.js').catch(()=>{document.getElementById('syncStatus').textContent='동기화 연결 실패 · 새로고침';});
+}else document.getElementById('syncStatus').textContent='로컬 미리보기';
 </script>
 </body>
 </html>

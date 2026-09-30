@@ -116,7 +116,8 @@ td.act{text-align:right;white-space:nowrap}
 <div id="gate">
   <form id="gateForm" autocomplete="off">
     <h1>관리자 제어판 <span class="demo-badge">데모</span></h1>
-    <p class="warn-box">데모 전용 잠금 · 실제 보안 아님 · 비밀번호가 소스에 그대로 보임 · 실제 운영은 stats.php 의 check_admin 으로 교체</p>
+    <p class="warn-box">로컬 제어판 데모 · 청중 동기화 진행은 강사 입장 화면 사용</p>
+    <a class="btn" href="slides.html?admin">Google 로그인 · 강사 입장</a>
     <label for="pw">비밀번호 (데모: 1234)</label>
     <!-- 서버 연결 지점: stats.php action=check_admin (POST pw) → { ok: true } 일 때만 입장 -->
     <input id="pw" type="password" inputmode="numeric" autocomplete="off" required>
@@ -226,7 +227,7 @@ td.act{text-align:right;white-space:nowrap}
 <script>
 (function(){
   /* ▼ slides.html 과 같은 접두사로 변경 (예: 'ai0927_') */
-  var LS = 'mykit_';
+  var LS = 'youtube20261012_';
   var STATE_KEY = LS + 'admin';       /* 목업 상태 전체를 JSON 한 칸에 저장 */
   var AUTH_KEY = LS + 'admin_ok';     /* 세션 동안만 로그인 유지 */
 
@@ -234,8 +235,8 @@ td.act{text-align:right;white-space:nowrap}
   var DEMO_PW = '1234';
 
   /* slides.html 의 aria-label 순서와 1:1 · 슬라이드 추가·삭제 시 함께 수정 */
-  var TITLES = ['표지', '오늘의 순서', '핵심 정리', '3요소', '프롬프트 비교', '실습 프롬프트', '휴식', '마침'];
-  var BREAKS = [6];                   /* 휴식 슬라이드 인덱스 (0부터) */
+  var TITLES = ["경험을 수익으로 연결하는 유튜브","오늘의 순서","채널 유형과 애드센스","시청자의 선택 이유","유튜브 수익의 종류","경험 기반 주제","지속 가능한 주제의 기준","실습: 경험 소재 목록","10분 휴식","핵심 시청자 한 사람","채널의 한 문장 소개","영상 형식의 선택","초기 운영 목표","실습: 채널 기획 카드","마침과 다음 준비","경험을 영상으로 바꾸는 기획","오늘의 순서","시청자의 질문","검색창 속 소재","참고 영상의 관찰 기준","차별화의 출발점","한 영상의 한 가지 약속","실습: 첫 영상 주제","10분 휴식","제목의 기본 구조","도입부의 역할","대본의 기본 구조","AI 대본 보조","실습: 첫 영상 대본","마침과 다음 준비","스마트폰으로 만드는 첫 영상","오늘의 순서","최소 촬영 준비물","영상 방향의 선택","안정적인 화면 구도","자연광의 활용","선명한 음성","실습: 30초 시험 촬영","10분 휴식","편집의 기본 순서","불필요한 구간 삭제","읽기 쉬운 자막","영상 파일 저장","실습: 첫 영상 완성","마침과 다음 준비","첫 업로드와 개선의 시작","오늘의 순서","채널 기본 정보","썸네일의 역할","제목과 썸네일의 조합","업로드의 기본 흐름","공개 범위의 선택","실습: 첫 영상 업로드","10분 휴식","시청 반응의 흐름","클릭률의 의미","시청 지속 시간의 의미","초기 데이터의 한계","실습: 다음 영상 개선안","마침과 다음 준비","지속 가능한 유튜브 수익화","오늘의 순서","광고 수익화의 준비","채널에 맞는 수익 방식","제휴 수익의 구조","협찬의 기본 구조","자체 상품과 서비스","실습: 수익 모델 선택","10분 휴식","저작권 점검","광고 관계의 표시","수익과 비용의 기록","지속 가능한 제작 주기","실습: 30일 운영 계획","마침과 첫 실행 약속"];
+  var BREAKS = [8,23,38,53,68];                   /* 휴식 슬라이드 인덱스 (0부터) */
   var TOTAL = TITLES.length;
 
   function seed(){
@@ -470,3 +471,4 @@ td.act{text-align:right;white-space:nowrap}
 </script>
 </body>
 </html>
+
